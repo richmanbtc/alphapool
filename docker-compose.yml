@@ -12,5 +12,4 @@ services:
         "-m",
         "unittest",
         "tests/test_client.py",
-        "tests/test_utils.py",
       ]

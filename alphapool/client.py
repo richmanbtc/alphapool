@@ -49,6 +49,5 @@ class Client:
             df.drop(['id', 'tournament', 'positions'], axis=1),
             df2
         ], axis=1)
-        df = df.fillna(0)
         df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True, unit='s')
         return df.set_index(['model_id', 'timestamp']).sort_index()

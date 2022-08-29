@@ -1,5 +1,6 @@
 from unittest import TestCase
 import dataset
+import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
 from alphapool import Client
@@ -36,13 +37,13 @@ class TestClient(TestCase):
                 'model_id': 'model1',
                 'p.btc': 0.5,
                 'p.eth': -0.5,
-                'p.xrp': 0.0,
+                'p.xrp': np.nan,
             },
             {
                 'timestamp': pd.to_datetime('2020/01/01 00:00:00', utc=True),
                 'model_id': 'model2',
                 'p.btc': 0.5,
-                'p.eth': 0.0,
+                'p.eth': np.nan,
                 'p.xrp': -0.5,
             },
         ]).set_index(['model_id', 'timestamp'])

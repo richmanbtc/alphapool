@@ -57,9 +57,11 @@ class Client:
         results = self._table.find(tournament=tournament)
         df = pd.DataFrame(results)
 
-        dfs = [df.drop(['id', 'tournament', 'positions', 'weights'], axis=1)]
+        dfs = [df[['model_id', 'timestamp', 'delay']]]
 
         def add_flattened(prefix, col):
+            if col not in df.columns:
+                return
             df_flattened = pd.json_normalize(df[col].where(~df[col].isna(), {}))
             df_flattened.columns = prefix + df_flattened.columns
             if is_numeric_dtype(df_flattened.iloc[:, 0]):

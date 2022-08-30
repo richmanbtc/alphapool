@@ -48,3 +48,39 @@ class TestClient(TestCase):
             },
         ]).set_index(['model_id', 'timestamp'])
         assert_frame_equal(df.drop('delay', axis=1), expected)
+
+    def test_submit_weights(self):
+        self.client.submit(
+            tournament='crypto_v1',
+            timestamp=int(pd.to_datetime('2020/01/01 00:00:00', utc=True).timestamp()),
+            model_id='portfolio',
+            weights={
+                'model1': 0.7,
+                'model2': 0.3,
+            }
+        )
+        self.client.submit(
+            tournament='crypto_v1',
+            timestamp=int(pd.to_datetime('2020/01/01 01:00:00', utc=True).timestamp()),
+            model_id='portfolio',
+            weights={
+                'model1': 0.3,
+                'model2': 0.7,
+            }
+        )
+        df = self.client.get_positions('crypto_v1')
+        expected = pd.DataFrame([
+            {
+                'timestamp': pd.to_datetime('2020/01/01 00:00:00', utc=True),
+                'model_id': 'portfolio',
+                'w.model1': 0.7,
+                'w.model2': 0.3,
+            },
+            {
+                'timestamp': pd.to_datetime('2020/01/01 01:00:00', utc=True),
+                'model_id': 'portfolio',
+                'w.model1': 0.3,
+                'w.model2': 0.7,
+            },
+        ]).set_index(['model_id', 'timestamp'])
+        assert_frame_equal(df.drop('delay', axis=1), expected)

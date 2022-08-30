@@ -64,7 +64,7 @@ class Client:
                 return
             df_flattened = pd.json_normalize(df[col].where(~df[col].isna(), {}))
             df_flattened.columns = prefix + df_flattened.columns
-            if is_numeric_dtype(df_flattened.iloc[:, 0]):
+            if df_flattened.shape[1] > 0 and is_numeric_dtype(df_flattened.iloc[:, 0]):
                 dfs.append(df_flattened)
 
         add_flattened('p.', 'positions')

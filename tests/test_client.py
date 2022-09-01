@@ -55,7 +55,7 @@ class TestClient(TestCase):
         self.client.submit(
             tournament="crypto_v1",
             timestamp=int(pd.to_datetime("2020/01/01 00:00:00", utc=True).timestamp()),
-            model_id="portfolio",
+            model_id="pf-model",
             weights={
                 "model1": 0.7,
                 "model2": 0.3,
@@ -64,7 +64,7 @@ class TestClient(TestCase):
         self.client.submit(
             tournament="crypto_v1",
             timestamp=int(pd.to_datetime("2020/01/01 01:00:00", utc=True).timestamp()),
-            model_id="portfolio",
+            model_id="pf-model",
             weights={
                 "model1": 0.3,
                 "model2": 0.7,
@@ -75,13 +75,13 @@ class TestClient(TestCase):
             [
                 {
                     "timestamp": pd.to_datetime("2020/01/01 00:00:00", utc=True),
-                    "model_id": "portfolio",
+                    "model_id": "pf-model",
                     "w.model1": 0.7,
                     "w.model2": 0.3,
                 },
                 {
                     "timestamp": pd.to_datetime("2020/01/01 01:00:00", utc=True),
-                    "model_id": "portfolio",
+                    "model_id": "pf-model",
                     "w.model1": 0.3,
                     "w.model2": 0.7,
                 },

@@ -58,8 +58,15 @@ class Client:
         if not v.validate(data):
             raise Exception("validation failed {}".format(data))
         data = v.document
-        if data["positions"] is not None and data["weights"] is not None:
-            raise Exception("positions and weights cannot be specified simultaneously")
+
+        is_portfolio = model_id.startswith("pf-")
+        if is_portfolio:
+            if data["positions"] is not None:
+                raise Exception("positions cannot be specified for portfolio")
+        else:
+            if data["weights"] is not None:
+                raise Exception("weights cannot be specified for non portfolio")
+
         self._table.upsert(data, ["tournament", "timestamp", "model_id"])
 
     def get_positions(self, tournament):

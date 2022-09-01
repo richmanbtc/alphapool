@@ -9,7 +9,7 @@ class Client:
         self._db = db
         self._table = db.create_table("positions")
 
-    def submit(self, tournament, timestamp, model_id, positions=None, weights=None):
+    def submit(self, tournament, timestamp, model_id, positions={}, weights={}):
         v = Validator(
             {
                 "tournament": {"type": "string", "empty": False, "required": True},
@@ -30,7 +30,7 @@ class Client:
                         "max": 100,
                     },
                     "coerce": _normalize_dict,
-                    "nullable": True,
+                    "required": True,
                 },
                 "weights": {
                     "type": "dict",
@@ -42,7 +42,7 @@ class Client:
                         "max": 1,
                     },
                     "coerce": _normalize_dict,
-                    "nullable": True,
+                    "required": True,
                 },
                 "delay": {"type": "float", "empty": False, "required": True},
             }
@@ -61,10 +61,10 @@ class Client:
 
         is_portfolio = model_id.startswith("pf-")
         if is_portfolio:
-            if data["positions"] is not None:
+            if len(data["positions"]) > 0:
                 raise Exception("positions cannot be specified for portfolio")
         else:
-            if data["weights"] is not None:
+            if len(data["weights"]) > 0:
                 raise Exception("weights cannot be specified for non portfolio")
 
         self._table.upsert(data, ["tournament", "timestamp", "model_id"])
@@ -92,6 +92,6 @@ class Client:
 
 
 def _normalize_dict(x):
-    if x is None or len(x) == 0:
-        return None
+    if x is None:
+        return {}
     return x

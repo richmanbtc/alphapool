@@ -6,7 +6,7 @@ from pandas.testing import assert_frame_equal
 from alphapool import Client
 
 
-class TestClient(TestCase):
+class TestClientPositions(TestCase):
     def setUp(self):
         self.db = dataset.connect("sqlite:///:memory:")
         self.client = Client(self.db)

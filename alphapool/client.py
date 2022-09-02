@@ -7,7 +7,6 @@ from pandas.api.types import is_numeric_dtype
 class Client:
     def __init__(self, db):
         self._db = db
-        self._table = db.create_table("positions")
 
     def submit(self, tournament, timestamp, model_id, positions={}, weights={}):
         v = Validator(
@@ -47,7 +46,7 @@ class Client:
                 "delay": {"type": "float", "empty": False, "required": True},
             }
         )
-        data = dict(
+        row = dict(
             tournament=tournament,
             timestamp=timestamp,
             model_id=model_id,
@@ -55,22 +54,22 @@ class Client:
             weights=weights,
             delay=time.time() - timestamp,
         )
-        if not v.validate(data):
-            raise Exception("validation failed {}".format(data))
-        data = v.document
+        if not v.validate(row):
+            raise Exception("validation failed {}".format(row))
+        row = v.document
 
         is_portfolio = model_id.startswith("pf-")
         if is_portfolio:
-            if len(data["positions"]) > 0:
+            if len(row["positions"]) > 0:
                 raise Exception("positions cannot be specified for portfolio")
         else:
-            if len(data["weights"]) > 0:
+            if len(row["weights"]) > 0:
                 raise Exception("weights cannot be specified for non portfolio")
 
-        self._table.upsert(data, ["tournament", "timestamp", "model_id"])
+        self._get_positions_table(create=True).upsert(row, ["tournament", "timestamp", "model_id"])
 
     def get_positions(self, tournament):
-        results = self._table.find(tournament=tournament)
+        results = self._get_positions_table().find(tournament=tournament)
         df = pd.DataFrame(results)
 
         dfs = [df[["model_id", "timestamp", "delay"]]]
@@ -89,6 +88,56 @@ class Client:
         df = pd.concat(dfs, axis=1)
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, unit="s")
         return df.set_index(["model_id", "timestamp"]).sort_index()
+
+    def set_cache(self, model_id, version, data={}):
+        v = Validator(
+            {
+                "model_id": {"type": "string", "empty": False, "required": True},
+                "version": {"type": "string", "empty": False, "required": True},
+                "data": {
+                    "type": "dict",
+                    "required": True,
+                },
+            }
+        )
+        row = dict(
+            model_id=model_id,
+            version=version,
+            data=data,
+        )
+        if not v.validate(row):
+            raise Exception("validation failed {}".format(row))
+        row = v.document
+
+        with self._db:
+            table = self._get_caches_table(create=True)
+            if 'model_id' in table.columns:
+                table.delete(model_id=model_id)
+            table.insert(row)
+
+    def get_cache(self, model_id, version):
+        table = self._get_caches_table()
+        if table is None:
+            return None
+        result = table.find_one(model_id=model_id, version=version)
+        if result is None:
+            return None
+        else:
+            return result['data']
+
+    def _get_positions_table(self, create=False):
+        return self._get_table("positions", create=create)
+
+    def _get_caches_table(self, create=False):
+        return self._get_table("caches", create=create)
+
+    def _get_table(self, name, create=False):
+        if create:
+            return self._db.create_table(name)
+        else:
+            if name in self._db.tables:
+                return self._db.load_table(name)
+        return None
 
 
 def _normalize_dict(x):

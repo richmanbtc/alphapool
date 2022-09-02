@@ -11,5 +11,6 @@ services:
         "python3",
         "-m",
         "unittest",
-        "tests/test_client.py",
+        "tests/test_client_caches.py",
+        "tests/test_client_positions.py",
       ]

@@ -38,8 +38,8 @@ class Client:
                     "valuesrules": {
                         "type": "float",
                         "empty": False,
-                        "min": 0,
-                        "max": 1,
+                        "min": -100,
+                        "max": 100,
                     },
                     "coerce": _normalize_dict,
                     "required": True,

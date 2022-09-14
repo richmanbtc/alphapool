@@ -69,8 +69,11 @@ class Client:
 
         self._table.upsert(data, ["tournament", "timestamp", "model_id"])
 
-    def get_positions(self, tournament):
-        results = self._table.find(tournament=tournament)
+    def get_positions(self, tournament, min_timestamp=0):
+        results = self._table.find(
+            tournament=tournament,
+            timestamp={ 'gte': min_timestamp },
+        )
         df = pd.DataFrame(results)
 
         dfs = [df[["model_id", "timestamp", "delay"]]]

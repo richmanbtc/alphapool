@@ -88,3 +88,89 @@ class TestClient(TestCase):
             ]
         ).set_index(["model_id", "timestamp"])
         assert_frame_equal(df.drop("delay", axis=1), expected)
+
+
+    def test_submit_orders(self):
+        self.client.submit(
+            tournament="crypto_v1",
+            timestamp=int(pd.to_datetime("2020/01/01 00:00:00", utc=True).timestamp()),
+            model_id="model1",
+            orders={
+                "btc": [
+                    {
+                        "price": 1,
+                        "amount": 2,
+                        "duration": 3,
+                        "isBid": False,
+                    }
+                ],
+            },
+        )
+        self.client.submit(
+            tournament="crypto_v1",
+            timestamp=int(pd.to_datetime("2020/01/01 01:00:00", utc=True).timestamp()),
+            model_id="model1",
+            orders={
+                "btc": [
+                    {
+                        "price": 4,
+                        "amount": 5,
+                        "duration": 6,
+                        "isBid": True,
+                    }
+                ],
+            },
+        )
+        df = self.client.get_positions("crypto_v1")
+        expected = pd.DataFrame(
+            [
+                {
+                    "timestamp": pd.to_datetime("2020/01/01 00:00:00", utc=True),
+                    "model_id": "model1",
+                },
+                {
+                    "timestamp": pd.to_datetime("2020/01/01 01:00:00", utc=True),
+                    "model_id": "model1",
+                },
+            ]
+        ).set_index(["model_id", "timestamp"])
+        assert_frame_equal(df.drop("delay", axis=1), expected)
+
+        df = self.client.get_positions_raw('crypto_v1')
+        expected = pd.DataFrame(
+            [
+                {
+                    "timestamp": pd.to_datetime("2020/01/01 00:00:00", utc=True),
+                    "model_id": "model1",
+                    "positions": {},
+                    "weights": {},
+                    "orders": {
+                        "btc": [
+                            {
+                                "price": 1,
+                                "amount": 2,
+                                "duration": 3,
+                                "isBid": False,
+                            }
+                        ],
+                    }
+                },
+                {
+                    "timestamp": pd.to_datetime("2020/01/01 01:00:00", utc=True),
+                    "model_id": "model1",
+                    "positions": {},
+                    "weights": {},
+                    "orders": {
+                        "btc": [
+                            {
+                                "price": 4,
+                                "amount": 5,
+                                "duration": 6,
+                                "isBid": True,
+                            }
+                        ],
+                    }
+                },
+            ]
+        ).set_index(["model_id", "timestamp"])
+        assert_frame_equal(df.drop("delay", axis=1), expected)

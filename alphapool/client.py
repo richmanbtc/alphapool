@@ -9,7 +9,7 @@ class Client:
         self._db = db
         self._table = db.create_table("positions")
 
-    def submit(self, tournament, timestamp, model_id, positions={}, weights={}):
+    def submit(self, tournament, timestamp, model_id, positions={}, weights={}, orders=None):
         v = Validator(
             {
                 "tournament": {"type": "string", "empty": False, "required": True},
@@ -44,6 +44,43 @@ class Client:
                     "coerce": _normalize_dict,
                     "required": True,
                 },
+                "orders": {
+                    "type": "dict",
+                    "keysrules": {"type": "string", "empty": False},
+                    "valuesrules": {
+                        "type": "list",
+                        "schema": {
+                            "type": "dict",
+                            "schema": {
+                                "price": {
+                                    "type": "float",
+                                    "required": True,
+                                    "min": 0,
+                                    "forbidden": [0],
+                                },
+                                "amount": {
+                                    "type": "float",
+                                    "required": True,
+                                    "min": 0,
+                                    "max": 100,
+                                    "forbidden": [0],
+                                },
+                                "duration": {
+                                    "type": "integer",
+                                    "min": 1,
+                                    "max": 24 * 60 * 60,
+                                    "required": True,
+                                },
+                                "isBuy": {
+                                    "type": "boolean",
+                                    'required': True,
+                                }
+                            },
+                        },
+                        "empty": False
+                    },
+                    "empty": False,
+                },
                 "delay": {"type": "float", "empty": False, "required": True},
             }
         )
@@ -55,6 +92,8 @@ class Client:
             weights=weights,
             delay=time.time() - timestamp,
         )
+        if orders is not None and len(orders) > 0:
+            data['orders'] = orders
         if not v.validate(data):
             raise Exception("validation failed {}".format(data))
         data = v.document
@@ -69,6 +108,7 @@ class Client:
 
         self._table.upsert(data, ["tournament", "timestamp", "model_id"])
 
+    # deprecated
     def get_positions(self, tournament, min_timestamp=0):
         results = self._table.find(
             tournament=tournament,
@@ -91,6 +131,18 @@ class Client:
 
         df = pd.concat(dfs, axis=1)
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, unit="s")
+        return df.set_index(["model_id", "timestamp"]).sort_index()
+
+
+    def get_positions_raw(self, tournament, min_timestamp=0):
+        results = self._table.find(
+            tournament=tournament,
+            timestamp={ 'gte': min_timestamp },
+        )
+        df = pd.DataFrame(results)
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, unit="s")
+        df = df.drop(columns=['tournament', 'id'])
+
         return df.set_index(["model_id", "timestamp"]).sort_index()
 
 

@@ -1,18 +1,29 @@
 from cerberus import Validator
 import pandas as pd
 import time
-from pandas.api.types import is_numeric_dtype
 
 
 class Client:
-    def __init__(self, db):
+    def __init__(self, db, tournament=None):
         self._db = db
-        self._table = db.create_table("positions")
+        table_name = 'positions' if tournament is None else '{}_positions'.format(tournament)
+        self._table = db.create_table(table_name)
 
-    def submit(self, tournament, timestamp, model_id, positions={}, weights={}, orders=None):
+        self._table.create_column('timestamp', db.types.guess(1))
+        self._table.create_column('model_id', db.types.guess('model'))
+        self._table.create_column('delay', db.types.guess(1.2))
+        self._table.create_column('positions', db.types.guess({ 'btc': 1.0 }))
+        self._table.create_column('weights', db.types.guess({ 'model': 1.0 }))
+        self._table.create_column('orders', db.types.guess({ 'btc': [] }))
+
+        # remove old
+        self._table.drop_column('tournament')
+
+        self._table.create_index(['timestamp', 'model_id'], unique=True)
+
+    def submit(self, timestamp, model_id, positions={}, weights={}, orders=None):
         v = Validator(
             {
-                "tournament": {"type": "string", "empty": False, "required": True},
                 "timestamp": {
                     "type": "integer",
                     "min": 1,
@@ -85,7 +96,6 @@ class Client:
             }
         )
         data = dict(
-            tournament=tournament,
             timestamp=timestamp,
             model_id=model_id,
             positions=positions,
@@ -106,44 +116,18 @@ class Client:
             if len(data["weights"]) > 0:
                 raise Exception("weights cannot be specified for non portfolio")
 
-        self._table.upsert(data, ["tournament", "timestamp", "model_id"])
+        self._table.insert(data)
 
-    # deprecated
-    def get_positions(self, tournament, min_timestamp=0):
+    def get_positions(self, min_timestamp=0):
         results = self._table.find(
-            tournament=tournament,
-            timestamp={ 'gte': min_timestamp },
-        )
-        df = pd.DataFrame(results)
-
-        dfs = [df[["model_id", "timestamp", "delay"]]]
-
-        def add_flattened(prefix, col):
-            if col not in df.columns:
-                return
-            df_flattened = pd.json_normalize(df[col].where(~df[col].isna(), {}))
-            df_flattened.columns = prefix + df_flattened.columns
-            if df_flattened.shape[1] > 0 and is_numeric_dtype(df_flattened.iloc[:, 0]):
-                dfs.append(df_flattened)
-
-        add_flattened("p.", "positions")
-        add_flattened("w.", "weights")
-
-        df = pd.concat(dfs, axis=1)
-        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, unit="s")
-        return df.set_index(["model_id", "timestamp"]).sort_index()
-
-
-    def get_positions_raw(self, tournament, min_timestamp=0):
-        results = self._table.find(
-            tournament=tournament,
             timestamp={ 'gte': min_timestamp },
         )
         df = pd.DataFrame(results)
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, unit="s")
-        df = df.drop(columns=['tournament', 'id'])
+        df = df.drop(columns=['id'])
+        df['orders'] = df['orders'].apply(lambda x: {} if pd.isnull(x) else x)
 
-        return df.set_index(["model_id", "timestamp"]).sort_index()
+        return df.set_index(["timestamp", "model_id"]).sort_index()
 
 
 def _normalize_dict(x):

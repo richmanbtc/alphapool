@@ -11,6 +11,7 @@ class Client:
 
         self._table.create_column('timestamp', db.types.guess(1))
         self._table.create_column('model_id', db.types.guess('model'))
+        self._table.create_column('exchange', db.types.guess('exchange'))
         self._table.create_column('delay', db.types.guess(1.2))
         self._table.create_column('positions', db.types.guess({ 'btc': 1.0 }))
         self._table.create_column('weights', db.types.guess({ 'model': 1.0 }))
@@ -21,7 +22,7 @@ class Client:
 
         self._table.create_index(['timestamp', 'model_id'], unique=True)
 
-    def submit(self, timestamp, model_id, positions={}, weights={}, orders=None):
+    def submit(self, timestamp, model_id, positions={}, weights={}, orders=None, exchange=None):
         v = Validator(
             {
                 "timestamp": {
@@ -31,6 +32,7 @@ class Client:
                     "required": True,
                 },
                 "model_id": {"type": "string", "empty": False, "required": True},
+                "exchange": {"type": "string", "empty": False, "required": False},
                 "positions": {
                     "type": "dict",
                     "keysrules": {"type": "string", "empty": False},
@@ -102,8 +104,12 @@ class Client:
             weights=weights,
             delay=time.time() - timestamp,
         )
+        if exchange is not None:
+            data['exchange'] = exchange
         if orders is not None and len(orders) > 0:
             data['orders'] = orders
+            if exchange is None:
+                raise Exception('exchange required when submit orders')
         if not v.validate(data):
             raise Exception("validation failed {}".format(data))
         data = v.document

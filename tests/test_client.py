@@ -37,6 +37,7 @@ class TestClient(TestCase):
                 {
                     "timestamp": pd.to_datetime("2020/01/01 00:00:00", utc=True),
                     "model_id": "model1",
+                    "exchange": None,
                     "positions": {
                         "btc": 0.5,
                         "eth": -0.5,
@@ -47,6 +48,7 @@ class TestClient(TestCase):
                 {
                     "timestamp": pd.to_datetime("2020/01/01 00:00:00", utc=True),
                     "model_id": "model2",
+                    "exchange": None,
                     "positions": {
                         "btc": 0.5,
                         "xrp": -0.5,
@@ -81,6 +83,7 @@ class TestClient(TestCase):
                 {
                     "timestamp": pd.to_datetime("2020/01/01 00:00:00", utc=True),
                     "model_id": "pf-model",
+                    "exchange": None,
                     "positions": {},
                     "weights": {
                         "model1": 0.7,
@@ -91,6 +94,7 @@ class TestClient(TestCase):
                 {
                     "timestamp": pd.to_datetime("2020/01/01 01:00:00", utc=True),
                     "model_id": "pf-model",
+                    "exchange": None,
                     "positions": {},
                     "weights": {
                         "model1": 0.3,
@@ -106,6 +110,7 @@ class TestClient(TestCase):
         self.client.submit(
             timestamp=int(pd.to_datetime("2020/01/01 00:00:00", utc=True).timestamp()),
             model_id="model1",
+            exchange="exchange1",
             orders={
                 "btc": [
                     {
@@ -120,6 +125,7 @@ class TestClient(TestCase):
         self.client.submit(
             timestamp=int(pd.to_datetime("2020/01/01 01:00:00", utc=True).timestamp()),
             model_id="model1",
+            exchange="exchange1",
             orders={
                 "btc": [
                     {
@@ -138,6 +144,7 @@ class TestClient(TestCase):
                 {
                     "timestamp": pd.to_datetime("2020/01/01 00:00:00", utc=True),
                     "model_id": "model1",
+                    "exchange": "exchange1",
                     "positions": {},
                     "weights": {},
                     "orders": {
@@ -154,6 +161,7 @@ class TestClient(TestCase):
                 {
                     "timestamp": pd.to_datetime("2020/01/01 01:00:00", utc=True),
                     "model_id": "model1",
+                    "exchange": "exchange1",
                     "positions": {},
                     "weights": {},
                     "orders": {

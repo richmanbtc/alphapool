@@ -94,7 +94,13 @@ class Client:
                     },
                     "empty": False,
                 },
-                "delay": {"type": "float", "empty": False, "required": True},
+                "delay": {
+                    "type": "float",
+                    "min": -24 * 60 * 60,
+                    "max": 24 * 60 * 60,
+                    "empty": False,
+                    "required": True,
+                },
             }
         )
         data = dict(

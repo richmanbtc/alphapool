@@ -1,4 +1,4 @@
-from unittest import TestCase
+from unittest import TestCase, mock
 import dataset
 import numpy as np
 import pandas as pd
@@ -14,6 +14,7 @@ class TestClient(TestCase):
 
         self.client = Client(self.db, tournament=str(uuid.uuid4())[:16])
 
+    @mock.patch('time.time', mock.MagicMock(return_value=pd.to_datetime("2020/01/01 00:00:00", utc=True).timestamp()))
     def test_submit(self):
         self.client.submit(
             timestamp=int(pd.to_datetime("2020/01/01 00:00:00", utc=True).timestamp()),
@@ -38,6 +39,7 @@ class TestClient(TestCase):
                     "timestamp": pd.to_datetime("2020/01/01 00:00:00", utc=True),
                     "model_id": "model1",
                     "exchange": None,
+                    "delay": 0.0,
                     "positions": {
                         "btc": 0.5,
                         "eth": -0.5,
@@ -49,6 +51,7 @@ class TestClient(TestCase):
                     "timestamp": pd.to_datetime("2020/01/01 00:00:00", utc=True),
                     "model_id": "model2",
                     "exchange": None,
+                    "delay": 0.0,
                     "positions": {
                         "btc": 0.5,
                         "xrp": -0.5,
@@ -58,8 +61,9 @@ class TestClient(TestCase):
                 },
             ]
         ).set_index(["timestamp", "model_id"])
-        assert_frame_equal(df.drop("delay", axis=1), expected)
+        assert_frame_equal(df, expected)
 
+    @mock.patch('time.time', mock.MagicMock(return_value=pd.to_datetime("2020/01/01 00:00:00", utc=True).timestamp()))
     def test_submit_weights(self):
         self.client.submit(
             timestamp=int(pd.to_datetime("2020/01/01 00:00:00", utc=True).timestamp()),
@@ -84,6 +88,7 @@ class TestClient(TestCase):
                     "timestamp": pd.to_datetime("2020/01/01 00:00:00", utc=True),
                     "model_id": "pf-model",
                     "exchange": None,
+                    "delay": 0.0,
                     "positions": {},
                     "weights": {
                         "model1": 0.7,
@@ -95,6 +100,7 @@ class TestClient(TestCase):
                     "timestamp": pd.to_datetime("2020/01/01 01:00:00", utc=True),
                     "model_id": "pf-model",
                     "exchange": None,
+                    "delay": -3600.0,
                     "positions": {},
                     "weights": {
                         "model1": 0.3,
@@ -104,8 +110,9 @@ class TestClient(TestCase):
                 },
             ]
         ).set_index(["timestamp", "model_id"])
-        assert_frame_equal(df.drop("delay", axis=1), expected)
+        assert_frame_equal(df, expected)
 
+    @mock.patch('time.time', mock.MagicMock(return_value=pd.to_datetime("2020/01/01 00:00:00", utc=True).timestamp()))
     def test_submit_orders(self):
         self.client.submit(
             timestamp=int(pd.to_datetime("2020/01/01 00:00:00", utc=True).timestamp()),
@@ -145,6 +152,7 @@ class TestClient(TestCase):
                     "timestamp": pd.to_datetime("2020/01/01 00:00:00", utc=True),
                     "model_id": "model1",
                     "exchange": "exchange1",
+                    "delay": 0.0,
                     "positions": {},
                     "weights": {},
                     "orders": {
@@ -162,6 +170,7 @@ class TestClient(TestCase):
                     "timestamp": pd.to_datetime("2020/01/01 01:00:00", utc=True),
                     "model_id": "model1",
                     "exchange": "exchange1",
+                    "delay": -3600.0,
                     "positions": {},
                     "weights": {},
                     "orders": {
@@ -177,4 +186,4 @@ class TestClient(TestCase):
                 },
             ]
         ).set_index(["timestamp", "model_id"])
-        assert_frame_equal(df.drop("delay", axis=1), expected)
+        assert_frame_equal(df, expected)

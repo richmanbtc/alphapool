@@ -18,7 +18,7 @@ class Client:
         self._table.create_column('orders', db.types.guess({ 'btc': [] }))
 
         # remove old
-        self._table.drop_column('tournament')
+        # self._table.drop_column('tournament')
 
         self._table.create_index(['timestamp', 'model_id'], unique=True)
 

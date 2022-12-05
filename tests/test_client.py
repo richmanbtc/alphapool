@@ -124,7 +124,7 @@ class TestClient(TestCase):
                         "price": 1,
                         "amount": 2,
                         "duration": 3,
-                        "isBuy": False,
+                        "is_buy": False,
                     }
                 ],
             },
@@ -139,7 +139,7 @@ class TestClient(TestCase):
                         "price": 4,
                         "amount": 5,
                         "duration": 6,
-                        "isBuy": True,
+                        "is_buy": True,
                     }
                 ],
             },
@@ -161,7 +161,7 @@ class TestClient(TestCase):
                                 "price": 1,
                                 "amount": 2,
                                 "duration": 3,
-                                "isBuy": False,
+                                "is_buy": False,
                             }
                         ],
                     }
@@ -179,7 +179,7 @@ class TestClient(TestCase):
                                 "price": 4,
                                 "amount": 5,
                                 "duration": 6,
-                                "isBuy": True,
+                                "is_buy": True,
                             }
                         ],
                     }

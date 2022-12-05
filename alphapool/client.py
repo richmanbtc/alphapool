@@ -84,7 +84,7 @@ class Client:
                                     "max": 24 * 60 * 60,
                                     "required": True,
                                 },
-                                "isBuy": {
+                                "is_buy": {
                                     "type": "boolean",
                                     'required': True,
                                 }

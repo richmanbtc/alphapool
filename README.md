@@ -1,7 +1,7 @@
 install
 
 ```bash
-pip install "git+https://github.com/richmanbtc/alphapool.git@v0.1.4#egg=alphapool"
+pip install "git+https://github.com/richmanbtc/alphapool.git@v0.1.5#egg=alphapool"
 ```
 
 test

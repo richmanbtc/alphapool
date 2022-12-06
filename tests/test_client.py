@@ -187,3 +187,47 @@ class TestClient(TestCase):
             ]
         ).set_index(["timestamp", "model_id"])
         assert_frame_equal(df, expected)
+
+    @mock.patch('time.time', mock.MagicMock(return_value=pd.to_datetime("2020/01/01 00:00:00", utc=True).timestamp()))
+    def test_min_timestamp(self):
+        self.client.submit(
+            timestamp=int(pd.to_datetime("2020/01/01 00:00:00", utc=True).timestamp()),
+            model_id="model1",
+            positions={
+                "btc": 0.5,
+                "eth": -0.5,
+            },
+        )
+        df = self.client.get_positions(min_timestamp=pd.to_datetime("2020/01/01 00:00:00", utc=True).timestamp())
+        expected = pd.DataFrame([
+            {
+                "timestamp": pd.to_datetime("2020/01/01 00:00:00", utc=True),
+                "model_id": "model1",
+                "exchange": None,
+                "delay": 0.0,
+                "positions": {
+                    "btc": 0.5,
+                    "eth": -0.5,
+                },
+                "weights": {},
+                "orders": {},
+            },
+        ]).set_index(["timestamp", "model_id"])
+        assert_frame_equal(df, expected)
+
+        df = self.client.get_positions(min_timestamp=pd.to_datetime("2020/01/01 00:00:01", utc=True).timestamp())
+        expected = pd.DataFrame([
+            {
+                "timestamp": pd.to_datetime("2020/01/01 00:00:00", utc=True),
+                "model_id": "model1",
+                "exchange": None,
+                "delay": 0.0,
+                "positions": {
+                    "btc": 0.5,
+                    "eth": -0.5,
+                },
+                "weights": {},
+                "orders": {},
+            },
+        ]).set_index(["timestamp", "model_id"]).iloc[:0]
+        assert_frame_equal(df, expected)

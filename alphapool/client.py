@@ -134,12 +134,26 @@ class Client:
         results = self._table.find(
             timestamp={ 'gte': min_timestamp },
         )
+        results = list(results)
+        if len(results) == 0:
+            return pd.DataFrame([
+                {
+                    "timestamp": pd.to_datetime("2020/01/01 00:00:00", utc=True),
+                    "model_id": "model1",
+                    "exchange": "exchange1",
+                    "delay": 0.0,
+                    "positions": {},
+                    "weights": {},
+                    "orders": {},
+                }
+            ]).set_index(["timestamp", "model_id"]).iloc[:0]
         df = pd.DataFrame(results)
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, unit="s")
         df = df.drop(columns=['id'])
         df['orders'] = df['orders'].apply(lambda x: {} if pd.isnull(x) else x)
 
         return df.set_index(["timestamp", "model_id"]).sort_index()
+
 
 
 def _normalize_dict(x):

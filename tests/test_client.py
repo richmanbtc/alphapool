@@ -2,6 +2,7 @@ from unittest import TestCase, mock
 from contextlib import closing
 from pathlib import Path
 import uuid
+import json
 
 import psycopg2
 from psycopg2 import sql
@@ -298,6 +299,70 @@ class TestClientUnit(TestCase):
                 with self.assertRaisesRegex(Exception, message):
                     Client(conn).submit(**data)
                 conn.cursor.assert_not_called()
+
+    @mock.patch('time.time', return_value=100000.0)
+    def test_validation_boundaries(self, clock):
+        order = dict(price=1, amount=100, duration=86400, is_buy=False)
+        invalid = [
+            {'timestamp': v} for v in (0, -1, 100000.0, 13599, 186401)
+        ] + [
+            {'model_id': v} for v in ('', None, 1)
+        ] + [
+            {'exchange': v} for v in ('', 1, False)
+        ]
+        for field in ('positions', 'weights'):
+            invalid += [{field: v} for v in ([], '', {'': 1}, {1: 1},
+                         {'btc': None}, {'btc': '1'}, {'btc': -101}, {'btc': 101},
+                         {'btc': float('inf')}, {'btc': -float('inf')})]
+        invalid += [{'orders': v, 'exchange': 'example'} for v in (
+            {'': [order]}, {1: [order]}, {'btc': []}, {'btc': order},
+            {'btc': [None]}, {'btc': [order | {'extra': 1}]},
+        )]
+        for field, values in {
+            'price': (0, -1, '1', None), 'amount': (0, -1, 101, '1', None),
+            'duration': (0, 86401, 1.0, '1', None), 'is_buy': (0, 1, 'true', None),
+        }.items():
+            invalid += [{'orders': {'btc': [order | {field: v}]}, 'exchange': 'example'}
+                        for v in values]
+            invalid.append({'orders': {'btc': [{k: v for k, v in order.items() if k != field}]},
+                            'exchange': 'example'})
+        for overrides in invalid:
+            with self.subTest(overrides=overrides):
+                conn = mock.MagicMock()
+                with self.assertRaisesRegex(Exception, 'validation failed'):
+                    Client(conn).submit(**(dict(timestamp=100000, model_id='example') | overrides))
+                conn.cursor.assert_not_called()
+        with self.assertRaisesRegex(Exception, 'exchange required'):
+            Client(mock.MagicMock()).submit(100000, 'example', orders={'btc': [order]})
+
+    @mock.patch('time.time', return_value=100000.0)
+    def test_valid_submissions_and_normalization(self, clock):
+        order = dict(price=1, amount=100, duration=86400, is_buy=False)
+        cases = [
+            {}, {'timestamp': 13600}, {'timestamp': 186400},
+            {'positions': None, 'weights': None},
+            {'positions': {'btc': -100, 'eth': 100.0}},
+            {'model_id': 'pf-example', 'weights': {'example': -100}},
+            {'orders': {}}, {'orders': []},
+            {'exchange': 'example', 'orders': {'btc': [order]}},
+            {'exchange': 'example', 'orders': {'btc': (order | {'duration': 1},)}},
+        ]
+        for overrides in cases:
+            with self.subTest(overrides=overrides):
+                conn = mock.MagicMock()
+                data = dict(timestamp=100000, model_id='example') | overrides
+                Client(conn).submit(**data)
+                cursor = conn.cursor.return_value
+                cursor.execute.assert_called_once()
+                values = cursor.execute.call_args.args[1]
+                for index, field in ((2, 'positions'), (3, 'weights')):
+                    self.assertEqual(json.loads(values[index]), data.get(field) or {})
+                if data.get('orders'):
+                    self.assertEqual(json.loads(values[-1]),
+                                     json.loads(json.dumps(data['orders'])))
+                cursor.close.assert_called_once()
+                conn.commit.assert_not_called()
+                conn.rollback.assert_not_called()
 
     def test_tournament_table_is_quoted_without_creating_it(self):
         conn = mock.MagicMock()

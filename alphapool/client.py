@@ -1,6 +1,6 @@
 import json
 
-from cerberus import Validator
+from collections.abc import Mapping, Sequence
 import pandas as pd
 import time
 
@@ -16,86 +16,6 @@ class Client:
         self._table_name = '"' + table_name.replace('"', '""').replace('%', '%%') + '"'
 
     def submit(self, timestamp, model_id, positions={}, weights={}, orders=None, exchange=None):
-        v = Validator(
-            {
-                "timestamp": {
-                    "type": "integer",
-                    "min": 1,
-                    "empty": False,
-                    "required": True,
-                },
-                "model_id": {"type": "string", "empty": False, "required": True},
-                "exchange": {"type": "string", "empty": False, "required": False},
-                "positions": {
-                    "type": "dict",
-                    "keysrules": {"type": "string", "empty": False},
-                    "valuesrules": {
-                        "type": "float",
-                        "empty": False,
-                        "min": -100,
-                        "max": 100,
-                    },
-                    "coerce": _normalize_dict,
-                    "required": True,
-                },
-                "weights": {
-                    "type": "dict",
-                    "keysrules": {"type": "string", "empty": False},
-                    "valuesrules": {
-                        "type": "float",
-                        "empty": False,
-                        "min": -100,
-                        "max": 100,
-                    },
-                    "coerce": _normalize_dict,
-                    "required": True,
-                },
-                "orders": {
-                    "type": "dict",
-                    "keysrules": {"type": "string", "empty": False},
-                    "valuesrules": {
-                        "type": "list",
-                        "schema": {
-                            "type": "dict",
-                            "schema": {
-                                "price": {
-                                    "type": "float",
-                                    "required": True,
-                                    "min": 0,
-                                    "forbidden": [0],
-                                },
-                                "amount": {
-                                    "type": "float",
-                                    "required": True,
-                                    "min": 0,
-                                    "max": 100,
-                                    "forbidden": [0],
-                                },
-                                "duration": {
-                                    "type": "integer",
-                                    "min": 1,
-                                    "max": 24 * 60 * 60,
-                                    "required": True,
-                                },
-                                "is_buy": {
-                                    "type": "boolean",
-                                    'required': True,
-                                }
-                            },
-                        },
-                        "empty": False
-                    },
-                    "empty": False,
-                },
-                "delay": {
-                    "type": "float",
-                    "min": -24 * 60 * 60,
-                    "max": 24 * 60 * 60,
-                    "empty": False,
-                    "required": True,
-                },
-            }
-        )
         data = dict(
             timestamp=timestamp,
             model_id=model_id,
@@ -109,9 +29,11 @@ class Client:
             data['orders'] = orders
             if exchange is None:
                 raise Exception('exchange required when submit orders')
-        if not v.validate(data):
+        if not _valid_submission(data):
             raise Exception("validation failed {}".format(data))
-        data = v.document
+        for field in ('positions', 'weights'):
+            if data[field] is None:
+                data[field] = {}
 
         is_portfolio = model_id.startswith("pf-")
         if is_portfolio:
@@ -171,8 +93,41 @@ class Client:
         return df.set_index(["timestamp", "model_id"]).sort_index()
 
 
+def _number(value, minimum, maximum=float('inf'), integer=False):
+    return (isinstance(value, int if integer else (int, float))
+            and not (value < minimum or value > maximum))
 
-def _normalize_dict(x):
-    if x is None:
-        return {}
-    return x
+
+def _named_mapping(value):
+    return isinstance(value, Mapping) and all(isinstance(k, str) and k for k in value)
+
+
+def _valid_submission(data):
+    if not (_number(data['timestamp'], 1, integer=True)
+            and isinstance(data['model_id'], str) and data['model_id']
+            and _number(data['delay'], -86400, 86400)):
+        return False
+    if 'exchange' in data and not (isinstance(data['exchange'], str) and data['exchange']):
+        return False
+    for field in ('positions', 'weights'):
+        value = data[field]
+        if value is not None and not (_named_mapping(value)
+                                      and all(_number(v, -100, 100) for v in value.values())):
+            return False
+    if 'orders' not in data:
+        return True
+    orders = data['orders']
+    if not (_named_mapping(orders) and orders):
+        return False
+    for items in orders.values():
+        if not (isinstance(items, Sequence) and not isinstance(items, str) and items):
+            return False
+        for order in items:
+            if not (isinstance(order, Mapping)
+                    and order.keys() == {'price', 'amount', 'duration', 'is_buy'}
+                    and _number(order['price'], 0) and order['price'] != 0
+                    and _number(order['amount'], 0, 100) and order['amount'] != 0
+                    and _number(order['duration'], 1, 86400, integer=True)
+                    and isinstance(order['is_buy'], bool)):
+                return False
+    return True

@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "alphapool"
+version = "0.1.5"
+requires-python = ">=3.12"
+dependencies = ["cerberus>=1.3.7", "pandas", "numpy"]
+
+[tool.setuptools]
+zip-safe = false
+
+[tool.setuptools.packages.find]
+namespaces = false
+exclude = ["tests"]

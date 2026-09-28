@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "alphapool"
 version = "0.1.5"
 requires-python = ">=3.12"
-dependencies = ["pandas", "numpy"]
+dependencies = ["pandas"]
 
 [tool.setuptools]
 zip-safe = false

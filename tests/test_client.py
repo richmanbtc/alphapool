@@ -1,15 +1,15 @@
-from unittest import TestCase, mock
+import json
+import uuid
 from contextlib import closing
 from pathlib import Path
-import uuid
-import json
+from unittest import TestCase, mock
 
-import psycopg2
-from psycopg2 import sql
 import pandas as pd
+import psycopg2
 from pandas.testing import assert_frame_equal
-from alphapool import Client
+from psycopg2 import sql
 
+from alphapool import Client
 
 def expected_positions(rows):
     records = [dict(exchange=None, delay=0.0, positions={}, weights={}, orders={})

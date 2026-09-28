@@ -1,8 +1,9 @@
 import json
-
-from collections.abc import Mapping, Sequence
-import pandas as pd
 import time
+from collections.abc import Mapping, Sequence
+from contextlib import closing
+
+import pandas as pd
 
 
 class Client:
@@ -12,7 +13,7 @@ class Client:
         The caller owns the connection and manages commits and rollbacks.
         """
         self._conn = conn
-        table_name = 'positions' if tournament is None else '{}_positions'.format(tournament)
+        table_name = 'positions' if tournament is None else f'{tournament}_positions'
         self._table_name = '"' + table_name.replace('"', '""').replace('%', '%%') + '"'
 
     def submit(self, timestamp, model_id, positions={}, weights={}, orders=None, exchange=None):
@@ -30,36 +31,30 @@ class Client:
             if exchange is None:
                 raise Exception('exchange required when submit orders')
         if not _valid_submission(data):
-            raise Exception("validation failed {}".format(data))
+            raise Exception(f'validation failed {data}')
         for field in ('positions', 'weights'):
             if data[field] is None:
                 data[field] = {}
 
-        is_portfolio = model_id.startswith("pf-")
-        if is_portfolio:
-            if len(data["positions"]) > 0:
-                raise Exception("positions cannot be specified for portfolio")
-        else:
-            if len(data["weights"]) > 0:
-                raise Exception("weights cannot be specified for non portfolio")
+        is_portfolio = model_id.startswith('pf-')
+        forbidden = 'positions' if is_portfolio else 'weights'
+        if data[forbidden]:
+            kind = 'portfolio' if is_portfolio else 'non portfolio'
+            raise Exception(f'{forbidden} cannot be specified for {kind}')
 
         columns = list(data)
         values = [json.dumps(data[column]) if column in {'positions', 'weights', 'orders'}
                   else data[column] for column in columns]
         placeholders = ", ".join(["%s"] * len(values))
         column_names = ', '.join('"' + column + '"' for column in columns)
-        cursor = self._conn.cursor()
-        try:
+        with closing(self._conn.cursor()) as cursor:
             cursor.execute(
                 f'INSERT INTO {self._table_name} ({column_names}) VALUES ({placeholders})',
                 values,
             )
-        finally:
-            cursor.close()
 
     def get_positions(self, min_timestamp=0):
-        cursor = self._conn.cursor()
-        try:
+        with closing(self._conn.cursor()) as cursor:
             cursor.execute(
                 'SELECT timestamp, model_id, exchange, delay, positions, weights, orders '
                 f'FROM {self._table_name} WHERE timestamp >= %s',
@@ -67,8 +62,6 @@ class Client:
             )
             columns = [column[0] for column in cursor.description]
             results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-        finally:
-            cursor.close()
         for result in results:
             for column in ('positions', 'weights', 'orders'):
                 value = result[column]

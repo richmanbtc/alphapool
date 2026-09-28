@@ -1,5 +1,5 @@
 {
-  "name": "alphapool-analyzer",
+  "name": "alphapool",
   "dockerComposeFile": "../docker-compose.yml",
   "service": "devcontainer",
   "runServices": ["devcontainer", "postgres"],

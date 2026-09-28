@@ -1,22 +1,29 @@
-version: "3"
 services:
-  test:
+  devcontainer:
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGDATABASE: postgres
+      PGCONNECT_TIMEOUT: "5"
     build:
       context: .
     volumes:
-      - ./:/app:ro
-    working_dir: /app
+      - ./:/workspace
+    working_dir: /workspace
+    command: ["sleep", "infinity"]
     depends_on:
-      - postgres
-    command:
-      [
-        "python3",
-        "-m",
-        "unittest",
-        "tests/test_client.py",
-      ]
+      postgres:
+        condition: service_healthy
   postgres:
-    image: postgres:latest
+    image: postgres:14-bookworm
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      # Disposable development DB only; no credentials or published ports.
+      POSTGRES_HOST_AUTH_METHOD: trust
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 10s

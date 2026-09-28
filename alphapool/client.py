@@ -1,26 +1,44 @@
+from importlib import import_module
+import json
+
 from cerberus import Validator
 import pandas as pd
 import time
 
 
 class Client:
-    def __init__(self, db, tournament=None):
-        self._db = db
+    def __init__(self, conn, tournament=None, *, paramstyle=None):
+        """Use an existing DB-API 2.0 connection and an already migrated table.
+
+        submit() commits successful inserts and rolls back failed inserts.
+        The caller owns the connection and is responsible for closing it.
+        paramstyle may be supplied for connection wrappers that hide the driver.
+        """
+        self._conn = conn
         table_name = 'positions' if tournament is None else '{}_positions'.format(tournament)
-        self._table = db.create_table(table_name)
+        self._table_name = '"' + table_name.replace('"', '""') + '"'
+        if paramstyle is None:
+            module = import_module(type(conn).__module__.split('.')[0])
+            paramstyle = getattr(module, 'paramstyle', None)
+        if paramstyle not in {'qmark', 'numeric', 'named', 'format', 'pyformat'}:
+            raise ValueError('Specify a supported DB-API paramstyle')
+        self._paramstyle = paramstyle
+        if paramstyle in {'format', 'pyformat'}:
+            self._table_name = self._table_name.replace('%', '%%')
 
-        self._table.create_column('timestamp', db.types.guess(1))
-        self._table.create_column('model_id', db.types.guess('model'))
-        self._table.create_column('exchange', db.types.guess('exchange'))
-        self._table.create_column('delay', db.types.guess(1.2))
-        self._table.create_column('positions', db.types.guess({ 'btc': 1.0 }))
-        self._table.create_column('weights', db.types.guess({ 'model': 1.0 }))
-        self._table.create_column('orders', db.types.guess({ 'btc': [] }))
-
-        # remove old
-        # self._table.drop_column('tournament')
-
-        self._table.create_index(['timestamp', 'model_id'], unique=True)
+    def _bind(self, values):
+        if self._paramstyle == 'qmark':
+            return ', '.join('?' for _ in values), tuple(values)
+        if self._paramstyle == 'format':
+            return ', '.join('%s' for _ in values), tuple(values)
+        if self._paramstyle == 'numeric':
+            return ', '.join(':{}'.format(i + 1) for i in range(len(values))), tuple(values)
+        names = ['p{}'.format(i) for i in range(len(values))]
+        if self._paramstyle == 'named':
+            placeholders = [':' + name for name in names]
+        else:
+            placeholders = ['%(' + name + ')s' for name in names]
+        return ', '.join(placeholders), dict(zip(names, values))
 
     def submit(self, timestamp, model_id, positions={}, weights={}, orders=None, exchange=None):
         v = Validator(
@@ -128,13 +146,42 @@ class Client:
             if len(data["weights"]) > 0:
                 raise Exception("weights cannot be specified for non portfolio")
 
-        self._table.insert(data)
+        columns = list(data)
+        values = [json.dumps(data[column]) if column in {'positions', 'weights', 'orders'}
+                  else data[column] for column in columns]
+        placeholders, parameters = self._bind(values)
+        column_names = ', '.join('"' + column + '"' for column in columns)
+        cursor = self._conn.cursor()
+        try:
+            cursor.execute(
+                f'INSERT INTO {self._table_name} ({column_names}) VALUES ({placeholders})',
+                parameters,
+            )
+            self._conn.commit()
+        except Exception:
+            self._conn.rollback()
+            raise
+        finally:
+            cursor.close()
 
     def get_positions(self, min_timestamp=0):
-        results = self._table.find(
-            timestamp={ 'gte': min_timestamp },
-        )
-        results = list(results)
+        placeholder, parameters = self._bind([min_timestamp])
+        cursor = self._conn.cursor()
+        try:
+            cursor.execute(
+                'SELECT timestamp, model_id, exchange, delay, positions, weights, orders '
+                f'FROM {self._table_name} WHERE timestamp >= {placeholder}',
+                parameters,
+            )
+            columns = [column[0] for column in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        finally:
+            cursor.close()
+        for result in results:
+            for column in ('positions', 'weights', 'orders'):
+                value = result[column]
+                if isinstance(value, (str, bytes, bytearray)):
+                    result[column] = json.loads(value)
         if len(results) == 0:
             return pd.DataFrame([
                 {
@@ -149,7 +196,6 @@ class Client:
             ]).set_index(["timestamp", "model_id"]).iloc[:0]
         df = pd.DataFrame(results)
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, unit="s")
-        df = df.drop(columns=['id'])
         df['orders'] = df['orders'].apply(lambda x: {} if pd.isnull(x) else x)
 
         return df.set_index(["timestamp", "model_id"]).sort_index()

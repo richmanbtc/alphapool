@@ -1,10 +1,9 @@
 {
   "name": "alphapool-analyzer",
-  "build": {
-    "dockerfile": "../Dockerfile",
-    "context": ".."
-  },
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "devcontainer",
+  "runServices": ["devcontainer", "postgres"],
   "workspaceFolder": "/workspace",
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
-  "overrideCommand": true
+  "overrideCommand": false,
+  "shutdownAction": "stopCompose"
 }

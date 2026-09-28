@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: docker-compose run test
+      - run: docker-compose run --rm devcontainer python3 -m unittest tests/test_client.py
 
   install:
     runs-on: ubuntu-latest

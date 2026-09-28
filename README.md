@@ -6,8 +6,12 @@ pip install "git+https://github.com/richmanbtc/alphapool.git@v0.1.5#egg=alphapoo
 
 test
 
+Run the tests inside the devcontainer. Compose connects it to the repository's PostgreSQL service; host database settings are not used. The image installs requirements.txt during the build. Rebuild the devcontainer after dependency changes.
+
+The tests create a temporary database, apply the existing SQL migrations, clear its positions table before each test, and drop the database during class cleanup. CI runs the tests using the same development image.
+
 ```bash
-docker-compose run test
+python3 -m unittest tests/test_client.py
 ```
 
 responsibilities
